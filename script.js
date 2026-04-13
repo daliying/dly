@@ -1,21 +1,73 @@
-const books = [];
+const STORAGE_KEY = "annual-books-app-state";
+
+const state = {
+  year: new Date().getFullYear(),
+  sortMode: "time",
+  books: [],
+};
 
 const form = document.getElementById("book-form");
 const yearInput = document.getElementById("year");
+const sortModeInput = document.getElementById("sort-mode");
 const titleInput = document.getElementById("title");
 const authorInput = document.getElementById("author");
 const ratingInput = document.getElementById("rating");
 const list = document.getElementById("book-list");
 const count = document.getElementById("count");
+const stats = document.getElementById("stats");
 const generateBtn = document.getElementById("generate-btn");
+const exportJsonBtn = document.getElementById("export-json-btn");
 const clearBtn = document.getElementById("clear-btn");
 const canvas = document.getElementById("poster");
 const downloadLink = document.getElementById("download-link");
 const ctx = canvas.getContext("2d");
 
-yearInput.value = new Date().getFullYear();
-
 const stars = (score) => "★".repeat(score) + "☆".repeat(5 - score);
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.books)) {
+      state.books = parsed.books
+        .map((item) => ({
+          id: item.id ?? crypto.randomUUID(),
+          title: String(item.title ?? "").trim(),
+          author: String(item.author ?? "").trim(),
+          rating: Number(item.rating ?? 0),
+          createdAt: Number(item.createdAt ?? Date.now()),
+        }))
+        .filter((item) => item.title && item.author && item.rating >= 1 && item.rating <= 5);
+    }
+
+    state.year = Number(parsed.year) || new Date().getFullYear();
+    state.sortMode = ["time", "rating-desc", "rating-asc"].includes(parsed.sortMode)
+      ? parsed.sortMode
+      : "time";
+  } catch (_) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function getSortedBooks() {
+  const copied = [...state.books];
+
+  if (state.sortMode === "rating-desc") {
+    copied.sort((a, b) => b.rating - a.rating || a.createdAt - b.createdAt);
+  } else if (state.sortMode === "rating-asc") {
+    copied.sort((a, b) => a.rating - b.rating || a.createdAt - b.createdAt);
+  } else {
+    copied.sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  return copied;
+}
 
 function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines = 2) {
   const chars = [...text];
@@ -34,20 +86,26 @@ function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines = 2) {
     }
   });
 
-  if (line) {
-    lines.push(line);
-  }
+  if (line) lines.push(line);
 
-  lines = lines.slice(0, maxLines);
-  lines.forEach((item, index) => {
+  lines.slice(0, maxLines).forEach((item, index) => {
     ctx.fillText(item, x, y + index * lineHeight);
   });
 }
 
+function renderStats(sortedBooks) {
+  const avg = sortedBooks.length
+    ? (sortedBooks.reduce((sum, item) => sum + item.rating, 0) / sortedBooks.length).toFixed(1)
+    : "0.0";
+  const fiveStars = sortedBooks.filter((item) => item.rating === 5).length;
+  stats.innerHTML = `<span>平均分：${avg}</span><span>五星：${fiveStars} 本</span>`;
+}
+
 function renderList() {
+  const sortedBooks = getSortedBooks();
   list.innerHTML = "";
 
-  books.forEach((book, index) => {
+  sortedBooks.forEach((book, index) => {
     const li = document.createElement("li");
     li.className = "book-item";
 
@@ -67,7 +125,8 @@ function renderList() {
     removeBtn.type = "button";
     removeBtn.textContent = "删除";
     removeBtn.addEventListener("click", () => {
-      books.splice(index, 1);
+      state.books = state.books.filter((item) => item.id !== book.id);
+      saveState();
       renderList();
     });
 
@@ -76,11 +135,12 @@ function renderList() {
     list.appendChild(li);
   });
 
-  count.textContent = `${books.length} 本`;
+  count.textContent = `${sortedBooks.length} 本`;
+  renderStats(sortedBooks);
 }
 
 function drawPoster() {
-  const year = yearInput.value || new Date().getFullYear();
+  const sortedBooks = getSortedBooks();
 
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
   gradient.addColorStop(0, "#eef2ff");
@@ -90,17 +150,17 @@ function drawPoster() {
 
   ctx.fillStyle = "#1f2937";
   ctx.font = "bold 54px sans-serif";
-  ctx.fillText(`📚 ${year} 年度书籍记录`, 60, 96);
+  ctx.fillText(`📚 ${state.year} 年度书籍记录`, 60, 96);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "28px sans-serif";
-  ctx.fillText(`总计 ${books.length} 本`, 60, 146);
+  ctx.fillText(`总计 ${sortedBooks.length} 本`, 60, 146);
 
   ctx.fillStyle = "#ffffffcc";
   ctx.fillRect(40, 180, canvas.width - 80, canvas.height - 260);
 
   const maxLines = 13;
-  const displayBooks = books.slice(0, maxLines);
+  const displayBooks = sortedBooks.slice(0, maxLines);
 
   displayBooks.forEach((book, i) => {
     const y = 235 + i * 70;
@@ -117,10 +177,10 @@ function drawPoster() {
     ctx.fillText(stars(book.rating), 650, y + 20);
   });
 
-  if (books.length > maxLines) {
+  if (sortedBooks.length > maxLines) {
     ctx.fillStyle = "#475569";
     ctx.font = "22px sans-serif";
-    ctx.fillText(`…另有 ${books.length - maxLines} 本已省略`, 70, canvas.height - 120);
+    ctx.fillText(`…另有 ${sortedBooks.length - maxLines} 本已省略`, 70, canvas.height - 120);
   }
 
   ctx.fillStyle = "#94a3b8";
@@ -139,19 +199,38 @@ form.addEventListener("submit", (event) => {
   const author = authorInput.value.trim();
   const rating = Number(ratingInput.value);
 
-  if (!title || !author || !rating) {
-    return;
-  }
+  if (!title || !author || !rating) return;
 
-  books.push({ title, author, rating });
+  state.year = Number(yearInput.value) || new Date().getFullYear();
+  state.books.push({
+    id: crypto.randomUUID(),
+    title,
+    author,
+    rating,
+    createdAt: Date.now(),
+  });
+
+  saveState();
   renderList();
   form.reset();
-  yearInput.value = new Date().getFullYear();
+  yearInput.value = state.year;
+  sortModeInput.value = state.sortMode;
   titleInput.focus();
 });
 
+yearInput.addEventListener("change", () => {
+  state.year = Number(yearInput.value) || new Date().getFullYear();
+  saveState();
+});
+
+sortModeInput.addEventListener("change", () => {
+  state.sortMode = sortModeInput.value;
+  saveState();
+  renderList();
+});
+
 generateBtn.addEventListener("click", () => {
-  if (!books.length) {
+  if (!state.books.length) {
     alert("请先添加至少一本书。");
     return;
   }
@@ -159,12 +238,27 @@ generateBtn.addEventListener("click", () => {
   drawPoster();
 });
 
+exportJsonBtn.addEventListener("click", () => {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `book-record-${state.year}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
 clearBtn.addEventListener("click", () => {
-  books.length = 0;
+  state.books = [];
+  saveState();
   renderList();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   downloadLink.removeAttribute("href");
   downloadLink.classList.add("disabled");
 });
 
+loadState();
+yearInput.value = state.year;
+sortModeInput.value = state.sortMode;
 renderList();

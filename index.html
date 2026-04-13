@@ -3,20 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>年度书籍记录</title>
+    <title>年度书籍记录 Web App</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="container">
       <section class="panel form-panel">
-        <h1>📚 我的年度书籍记录</h1>
-        <p class="subtitle">输入书名、作者与评分，自动汇总为年度图卡。</p>
+        <h1>📚 年度书籍记录 Web App</h1>
+        <p class="subtitle">记录你的年度阅读清单，并导出分享图。</p>
 
         <form id="book-form" autocomplete="off">
-          <label>
-            年份
-            <input id="year" name="year" type="number" min="1900" max="2100" />
-          </label>
+          <div class="grid-2">
+            <label>
+              年份
+              <input id="year" name="year" type="number" min="1900" max="2100" />
+            </label>
+            <label>
+              评分排序
+              <select id="sort-mode" name="sort-mode">
+                <option value="time">按添加顺序</option>
+                <option value="rating-desc">按评分高到低</option>
+                <option value="rating-asc">按评分低到高</option>
+              </select>
+            </label>
+          </div>
 
           <label>
             书名
@@ -52,8 +62,18 @@
           <h2>已收录书单</h2>
           <span id="count">0 本</span>
         </div>
+
+        <div class="stats" id="stats">
+          <span>平均分：0.0</span>
+          <span>五星：0 本</span>
+        </div>
+
         <ul id="book-list" class="book-list"></ul>
-        <button id="generate-btn" type="button" class="generate">生成年度图卡</button>
+
+        <div class="actions stack">
+          <button id="generate-btn" type="button" class="generate">生成年度图卡</button>
+          <button id="export-json-btn" type="button" class="secondary">导出 JSON 备份</button>
+        </div>
       </section>
     </main>
 
