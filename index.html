@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>年度书籍记录</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="panel form-panel">
+        <h1>📚 我的年度书籍记录</h1>
+        <p class="subtitle">输入书名、作者与评分，自动汇总为年度图卡。</p>
+
+        <form id="book-form" autocomplete="off">
+          <label>
+            年份
+            <input id="year" name="year" type="number" min="1900" max="2100" />
+          </label>
+
+          <label>
+            书名
+            <input id="title" name="title" type="text" placeholder="例如：《百年孤独》" required maxlength="60" />
+          </label>
+
+          <label>
+            作者
+            <input id="author" name="author" type="text" placeholder="例如：加西亚·马尔克斯" required maxlength="50" />
+          </label>
+
+          <label>
+            打星（1-5）
+            <select id="rating" name="rating" required>
+              <option value="">请选择评分</option>
+              <option value="5">★★★★★（5）</option>
+              <option value="4">★★★★☆（4）</option>
+              <option value="3">★★★☆☆（3）</option>
+              <option value="2">★★☆☆☆（2）</option>
+              <option value="1">★☆☆☆☆（1）</option>
+            </select>
+          </label>
+
+          <div class="actions">
+            <button type="submit">添加记录</button>
+            <button type="button" id="clear-btn" class="secondary">清空记录</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="list-header">
+          <h2>已收录书单</h2>
+          <span id="count">0 本</span>
+        </div>
+        <ul id="book-list" class="book-list"></ul>
+        <button id="generate-btn" type="button" class="generate">生成年度图卡</button>
+      </section>
+    </main>
+
+    <section class="output panel">
+      <h2>年度图卡预览</h2>
+      <canvas id="poster" width="900" height="1200" aria-label="年度书籍图卡"></canvas>
+      <a id="download-link" download="年度书籍记录.png" class="download disabled">下载图片</a>
+    </section>
+
+    <script src="script.js"></script>
+  </body>
+</html>
